@@ -1,16 +1,18 @@
 # grpcorr
-Correction algorithm for a finite matrix group known approximately
+Python library for reconstruction of a finite matrix group known approximately
 
 Prereqisites:
-  numpy and  scipy
+  numpy and scipy
 
 Use:
   import grpcorr
 
-The module contains two driver routines:
+The module grpcorr.py contains three driver routines:
 
-multab_group_correction - performes multiplication table based correction
+multab_group_correction - performes multiplication table based reconstruction
 
-lsf_group_correction    - performes least squares fit in addition
+lsf_group_correction    - performes simultaneous least squares fit to the set of given matrices
+
+abfit_group_correction  - performes simultaneous least squares fit with a set of vectors
 
 See the comments inside.
