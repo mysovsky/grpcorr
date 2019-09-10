@@ -68,7 +68,7 @@ def mtab_correction(G,F):
         G[i] = G[i] - D
 
 
-def multab_group_correction(G,mtab, eps = 1e-6 ,maxit = 100 ):
+def multab_group_correction(G,mtab, eps = 1e-6 ,maxit = 100, reunit = 1 ):
     ''' perform multiplication table based group correction until the 
         convergence is achieved
         G (IN,OUT) - group as a list of numpy matricies
@@ -77,13 +77,15 @@ def multab_group_correction(G,mtab, eps = 1e-6 ,maxit = 100 ):
         eps  (IN, real) - the convergence threshold for total deviation norm 
                           from multiplication table
         maxit (IN, int) - maximum number of iterations
+        reunit (IN, int) = 1 - re-unitarize matrices on each iteration
+                         = 0 - do not re-unitarize
     '''
     it = 0
     N = len(G)
     while it < maxit:
-        for i in range(N):
-#            pass
-            G[i]=make_unitary(G[i])
+        if reunit == 1:
+            for i in range(N):
+                G[i]=make_unitary(G[i])
         F = make_F(G,mtab)
         # calculate the error
         errval = grp_error(F)
