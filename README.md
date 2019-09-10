@@ -1,13 +1,14 @@
 # ReGroup
 Python library for reconstruction of a finite matrix group known approximately
 
-##Prereqisites:
+## Prereqisites:
   numpy and scipy
 
-##Use:
+## Use:
+
 '''
-  import grpcorr
-  '''
+import grpcorr
+'''
 
 The module grpcorr.py contains three driver routines:
 
