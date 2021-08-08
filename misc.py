@@ -1,8 +1,7 @@
 # SYMM - auxillary stuff to work with symmetry
 
-# Copyright (C) 2019 Andrey S. Mysovsky,
-# (1) Institute of Geochemistry SB RAS,
-# (2) Irkutsk National Research Technical University
+# Copyright (C) 2019-2021 Andrey S. Mysovsky,
+# Institute of Geochemistry SB RAS,
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,44 +21,37 @@ import numpy as np
 
 class permut:
     def __init__(self,li):
-        if type(li)!=list:
-            raise TypeError('permut constructor: needs a list of integers')
-        self.p = li
+        if not type(li) in [list,tuple]:
+            raise TypeError('permut constructor: needs a list or tuple of integers')
+        self.P = tuple(li)
 
     def __getitem__(self,i):
-        return self.p[i]
+        return self.P[i]
 
     def __setitem__(self,i,j):
-        self.p[i] = j
+        p = list(self.P)
+        p[i] = j
+        self.P = tuple(p)
 
     def __mul__(self,perm2):
-        if len(self.p)!=len(perm2.p):
+        if len(self.P)!=len(perm2.P):
             raise IndexError('Permutations have different dimensions')
-        res = []
-        for i in range(len(self.p)):
-            #res.append(perm2[self.p[i]])
-            res.append(self[perm2[i]])
-        return permut(res)
+        return permut([self[p] for p in perm2])
 
     def __len__(self):
-        return len(self.p)
+        return len(self.P)
 
     def __eq__(self,perm2):
-        if len(self) != len(perm2):
-            return False
-        for i in range(len(self)):
-            if self[i] != perm2[i]:
-                return False
-        return True
+        return self.P == perm2.P
 
     def __ne__(self,perm2):
-        return not self==perm2
+        return self.P!=perm2.P
 
     def __str__(self):
-        return 'permut(' + str(self.p) +')'
+        return 'permut(' + str(self.P) +')'
 
     def __repr__(self):
-        return 'permut(' + str(self.p) +')'
+        return 'permut(' + str(self.P) +')'
     
 #---------------------------------------------------------
 
@@ -97,45 +89,13 @@ def symm_add(group,op):
 
 def build_multab(group):
     N = len(group)
-    tab = []
-    for i in range(N): tab.append(list([0]*N))
+    tab = {}
     #print tab
     for i in range(N):
         for j in range(N):
             #print i,j,group.index(group[i]*group[j])
-            tab[i][j] = group.index(group[i]*group[j])
+            tab[i,j] = group.index(group[i]*group[j])
     return tab
-
-#---------------------------------------------------------
-
-def symm_order_by_multab(multab,i):
-    #print "by multab call"
-    if (type(multab) is list) and (type(multab[0]) is list) and (type(multab[0][0]) is int):
-        n=0;
-        j=i
-        while j!=0:
-            j = multab[j][i]
-            n = n + 1
-        return n + 1
-    else:
-        #print "by multab TE"
-        raise TypeError()
-
-def symm_order_by_element(A):
-    #print "by element"
-    n=0
-    B=A*A
-    while B!=A:
-        B = B*A
-        n = n + 1
-    return n + 1
-
-def symm_order_by_index(group,i):
-    return symm_order_by_element(group[i])
-
-def symm_order(*args,**kwds):
-    return overloader([symm_order_by_multab,symm_order_by_element,symm_order_by_index],args,kwds, \
-                      "qpp: invalid arguments in symm_order call"+str(args)+str(kwds))
 
 #---------------------------------------------------------
 

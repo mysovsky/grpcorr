@@ -18,4 +18,14 @@ lsf_group_correction    - performes simultaneous least squares fit to the set of
 
 abfit_group_correction  - performes simultaneous least squares fit with a set of vectors
 
-See the comments inside.
+'''
+import symmfinder
+'''
+
+The module symmfinder contains two driver routines:
+
+symmetry_finder   - finds approximates symmetry operations for a set of points
+
+inclusive_closure - constructs the missing symmetry operations and builds group multiplication table
+
+Type help(routine) for the details

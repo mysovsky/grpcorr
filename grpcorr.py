@@ -1,8 +1,7 @@
 # GRPCORR - module implementing finite matrix group corrections
 
-# Copyright (C) 2019 Andrey S. Mysovsky,
-# (1) Institute of Geochemistry SB RAS,
-# (2) Irkutsk National Research Technical University
+# Copyright (C) 2019-2021 Andrey S. Mysovsky,
+# Institute of Geochemistry SB RAS,
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,19 +22,30 @@ import numpy as np
 import numpy.linalg as la
 import scipy.linalg as sla
 
-def make_unitary(U):
-    S = U*U.T
-    return sla.fractional_matrix_power(S,-0.5)*U
+#def make_unitary(U):
+#    S = U*U.T
+#    return sla.fractional_matrix_power(S,-0.5)*U
 
+def unitarize(B):
+    u,s,v = sla.svd(B)
+    return u.dot(v)
+
+def best_ab_transform(a,b):
+    ''' Finds the best possible unitary transformation of a vector into b vectors,
+    i.e. finds the best U to fulfill U*a[i] == b[i] 
+    a, b (IN) - two lists of vectors of the same length
+    '''
+    U = sum([ np.outer(b[i],a[i]) for i in range(len(a))])
+    return unitarize(U)
 
 def make_F(G,mtab):
-    ''' G   ( IN) - group as a list of numpy matricies
+    ''' G   ( IN)  - group as a list of numpy matricies
         mtab (IN)  - group multiplication table; 
-        mtab[i][j] is the number of element G[i]*G[j]
+        mtab[i,j]    is the number of element G[i]*G[j]
         return value - array of F[i,j] = G[i]*G[j] - G[(ij)]
     '''
     N = len(G)
-    return [[ G[i]*G[j] - G[mtab[i][j]] for j in range(N)] for i in range(N)]
+    return [[ G[i].dot(G[j]) - G[mtab[i,j]] for j in range(N)] for i in range(N)]
 
 def grp_error(F):
     ''' F  - array of F[i,j] = G[i]*G[j] - G[(ij)]
@@ -48,8 +58,8 @@ def grp_error(F):
 
 def grp_rotate(G,R):
     for i in range(len(G)):
-        G[i] = sla.expm(-R)*G[i]*sla.expm(R)
-
+        U = sla.expm(R)
+        G[i] = U.transpose().dot(G[i].dot(U))
         
 def mtab_correction(G,F):
     ''' perform multiplication table based group correction (one iteration)
@@ -61,9 +71,9 @@ def mtab_correction(G,F):
     Ginv = [la.inv(G[i]) for i in range(N)]
       # inverse matricies
     for i in range(N):
-        D = np.asmatrix(np.zeros(shape = G[0].shape))
+        D = np.zeros(shape = G[0].shape)
         for j in range(N):
-            D = D + Ginv[j]*F[j][i] + F[i][j]*Ginv[j]
+            D = D + Ginv[j].dot(F[j][i]) + F[i][j].dot(Ginv[j])
         D /= 2*N
         G[i] = G[i] - D
 
@@ -73,7 +83,7 @@ def multab_group_correction(G,mtab, eps = 1e-6 ,maxit = 100, reunit = 1 ):
         convergence is achieved
         G (IN,OUT) - group as a list of numpy matricies
         mtab (IN)  - group multiplication table; 
-        mtab[i][j] is the number of element G[i]*G[j]
+        mtab[i,j]    is the number of element G[i]*G[j]
         eps  (IN, real) - the convergence threshold for total deviation norm 
                           from multiplication table
         maxit (IN, int) - maximum number of iterations
@@ -85,7 +95,7 @@ def multab_group_correction(G,mtab, eps = 1e-6 ,maxit = 100, reunit = 1 ):
     while it < maxit:
         if reunit == 1:
             for i in range(N):
-                G[i]=make_unitary(G[i])
+                G[i] = unitarize(G[i])
         F = make_F(G,mtab)
         # calculate the error
         errval = grp_error(F)
@@ -98,22 +108,6 @@ def multab_group_correction(G,mtab, eps = 1e-6 ,maxit = 100, reunit = 1 ):
     if it>=maxit:
         print("Maximum number of iterations reached, the fit is not converged!!!")
 
-
-def make_Q(a,b):
-    '''
-    a (IN) - list of list of numpy vectors
-    b (IN) - list of list numpy vectors
-    return value - list of numpy matricies
-        Q[i] = SUM(j) |a[i][j]><b[i][j]|
-    '''
-    Q = []
-    for i in range(len(a)):
-        s = np.zeros(shape = (a[i][0].shape[0],b[i][0].shape[0]))
-        for j in range(len(a[i])):
-            s = s + np.outer(a[i][j],b[i][j])
-        Q.append(np.asmatrix(s))
-    return Q
-
 def kronecker_prod(A,B):
     na1, na2 = A.shape
     nb1, nb2 = B.shape
@@ -123,7 +117,7 @@ def kronecker_prod(A,B):
     for i in range(na1):
         for j in range(na2):
             res[i*nb1:(i+1)*nb1, j*nb2:(j+1)*nb2] = A[i,j]*B
-    return np.asmatrix(res)
+    return res
 
 def mtr_to_vec(A):
     res = np.zeros(shape=(A.shape[0]*A.shape[1]))
@@ -145,26 +139,29 @@ def vec_to_mtr(v,n,m):
 
 def make_L0(G):
     N = len(G)
-    In = np.asmatrix(np.identity(G[0].shape[0]))
+    In = np.identity(G[0].shape[0])
     L = 4*N*kronecker_prod(In,In)
     for i in range(N):
         L -= 2*kronecker_prod(G[i],G[i])
         L -= 2*kronecker_prod(G[i].transpose(),G[i].transpose())
     return L
-        
+
+def hermcj(A):
+    return A.transpose().conjugate()
+
 def make_L1(G,Q):
     N = len(G)
     GQ = np.zeros(shape = G[0].shape)
     for i in range(N):
-        GQ = GQ + ( G[i]*Q[i].H + Q[i]*G[i].H + G[i].H*Q[i] + Q[i].H*G[i] )*0.5
-    IN = np.asmatrix(np.identity(G[0].shape[0]))
+        GQ = GQ + ( G[i].dot(hermcj(Q[i])) + Q[i].dot(hermcj(G[i])) + hermcj(G[i]).dot(Q[i]) + hermcj(Q[i]).dot(G[i]) )*0.5
+    IN = np.identity(G[0].shape[0])
     L  = kronecker_prod(IN,GQ)
     L += kronecker_prod(GQ.T,IN)
     for i in range(N):
-        L -= kronecker_prod(Q[i].conj(), G[i])
-        L -= kronecker_prod(G[i].conj(), Q[i])
-        L -= kronecker_prod(G[i].T, Q[i].H)
-        L -= kronecker_prod(Q[i].T, G[i].H)
+        L -= kronecker_prod(Q[i].conjugate(), G[i])
+        L -= kronecker_prod(G[i].conjugate(), Q[i])
+        L -= kronecker_prod(G[i].transpose(), hermcj(Q[i]))
+        L -= kronecker_prod(Q[i].transpose(), hermcj(G[i]))
     return L
 
 def grad_R(G,Q):
@@ -173,7 +170,7 @@ def grad_R(G,Q):
     for i in range(N):
         #debug
         #print(la.norm(np.imag(G[i])), la.norm(np.imag(Q[i])))                    
-        g = g + G[i]*Q[i].H - Q[i].H*G[i] + G[i].H*Q[i] - Q[i]*G[i].H
+        g = g + G[i].dot(hermcj(Q[i])) - hermcj(Q[i]).dot(G[i]) + hermcj(G[i]).dot(Q[i]) - Q[i].dot(hermcj(G[i]))
     return g
 
 def q_correction(G,Q):
@@ -202,7 +199,7 @@ def ab_diff(G,a,b):
     S = 0e0
     for i in range(len(G)):
         for j in range(len(a[i])):
-            S += la.norm(np.matmul(G[i],a[i][j]) - b[i][j])**2
+            S += la.norm(G[i].dot(a[i][j]) - b[i][j])**2
     return sqrt(S)
         
 # ---------------------------------------------------------------------
@@ -215,7 +212,7 @@ def lsf_group_correction(G,Q,mtab, algo=0, maxit=100,
         G (IN,OUT) - group as a list of numpy matricies
         Q (IN)     - list of numpy matricies Q[i] to which G[i] must be as close as possible
         mtab (IN)  - group multiplication table; 
-        mtab[i][j] is the number of element G[i]*G[j]
+        mtab[i,j]    is the number of element G[i]*G[j]
         algo  (IN, int) - selector of the q-correction formula
                algo = 0 - simplified formula
                algo = 1 - supermatrix based solution
@@ -229,7 +226,7 @@ def lsf_group_correction(G,Q,mtab, algo=0, maxit=100,
     err_diff_prev = 0e0
     while it < maxit:
         for i in range(N):
-            G[i]=make_unitary(G[i])
+            G[i]=unitarize(G[i])
         convg = True
         F = make_F(G,mtab)
         # calculate the multiplication table violation value
@@ -284,12 +281,12 @@ def abfit_group_correction(G, a, b, mtab, algo=0, maxit=100,
     it = 0
     N = len(G)
     err_diff_prev = 0e0
-    Q = make_Q(a,b)
-    for i in range(N):
-        Q[i] = make_unitary(Q[i])
+    
+    Q = [ best_ab_transform(a[i],b[i]) for i in range(len(a)) ]
+        
     while it < maxit:
         for i in range(N):
-            G[i]=make_unitary(G[i])
+            G[i]=unitarize(G[i])
         convg = True
         F = make_F(G,mtab)
         # calculate the multiplication table violation value
@@ -327,7 +324,7 @@ def rnd_mtr(N):
     for i in range(N):
         for j in range(N):
             A[i,j] = 2*random.random()-1e0
-    return np.asmatrix(A)
+    return np.A
 
 def grp_shake(G,eps):
     ''' shake the group by adding random real numbers to all matrix elements
@@ -338,5 +335,5 @@ def grp_shake(G,eps):
                 G[i][j,k] += eps*(2*random.random()-1e0)
             
 def m3d_to_np(M):
-    return np.matrix([[[M[i,j] for j in [0,1,2]] for i in [0,1,2]]])
+    return np.array([[[M[i,j] for j in [0,1,2]] for i in [0,1,2]]])
 
