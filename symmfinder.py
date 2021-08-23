@@ -185,7 +185,7 @@ def symmetry_finder(points,dim,epsilon, algo = 0, badness_list = None):
     if algo_slow and badness_list==None:
         raise ValueError("For slow algorithm please provide badness_list as empty dictionary for badness tracking")
     
-    t0 = time.clock()
+    t0 = time.process_time()
 
     # Construct dot products matrix
     S = np.asmatrix(np.zeros((N,N)))
@@ -197,7 +197,7 @@ def symmetry_finder(points,dim,epsilon, algo = 0, badness_list = None):
     for i in range(N):
         R[i] = sqrt(S[i,i])
 
-    t1 = time.clock()
+    t1 = time.process_time()
     print('Dot products matrix: {:8.3f} sec CPU time'.format(t1-t0))
 
     # For each point construct the list of points in which it can be transformed
@@ -209,7 +209,7 @@ def symmetry_finder(points,dim,epsilon, algo = 0, badness_list = None):
                 pt2pt[i].append(j)
                 pt2pt[j].append(i)
                 
-    t2 = time.clock()
+    t2 = time.process_time()
     print('Point to point list: {:8.3f} sec CPU time'.format(t2-t1))
 
     # Angle matrix
@@ -243,7 +243,7 @@ def symmetry_finder(points,dim,epsilon, algo = 0, badness_list = None):
                     pair2pair[i,j].append((j1,i1))
                     pair2pair[j,i].append((i1,j1))
 
-    t3 = time.clock()
+    t3 = time.process_time()
     print('Pair to pair list:   {:8.3f} sec CPU time'.format(t3-t2))
 
     # Find candidate permutations of points
@@ -252,7 +252,7 @@ def symmetry_finder(points,dim,epsilon, algo = 0, badness_list = None):
     projector = np.zeros((D0,D0))
     pers,ops =  match_next({}, possible_subst, badness_list, projector, points, dim, pair2pair, algo_fast, epsilon)
 
-    t4 = time.clock()
+    t4 = time.process_time()
     print('\nApproximate symmetries search:   {:8.3f} sec CPU time'.format(t4-t3))
 
     return pers,ops
@@ -282,7 +282,8 @@ def inclusive_closure(P,G):
     iend = len(P)
     print("Inclusive closure & multiplication table build:")
     while inew < iend:
-        t0 = time.clock()
+        t0 = time.process_time()
+        t1 = 0e0
         for i in range(inew,iend):
             multab[i,0] = i
             multab[0,i] = i
@@ -327,10 +328,13 @@ def inclusive_closure(P,G):
                     #print(j,i,' not found_v ',Pji)
                     #print(alrd_v)
                     #print(P)
+            t2 = time.process_time()
+            if t2-t1 > .3 or i == iend-1:
                 print('\r', end='')
                 print("Multiplication table: {:6.2f}% complete, {:8.3f} sec CPU time".
-                      format(100*(i**2-inew**2 + 2*j + 1)/(iend**2-inew**2), time.clock() - t0),
+                      format(100*(i**2-inew**2 + 2*j + 1)/(iend**2-inew**2), t2 - t0),
                       end="", flush=True)
+                t1 = t2
         inew = len(P)
         iend = inew
         for Pij in absent:
@@ -339,7 +343,7 @@ def inclusive_closure(P,G):
                 multab[ij] = iend
             G.append(G[ij[0]].dot(G[ij[1]]))
             iend += 1
-        t1 = time.clock()
+        t1 = time.process_time()
         print("\n{:10d} new elements found, {:8.3f} sec CPU time spent".format(len(absent),t1-t0))
         absent = {}
     print("Total group size now:{:7d}".format(len(P)))
@@ -424,10 +428,10 @@ def np_inclusive_closure(P,G):
                     #print(j,i,' not found_v ',Pji)
                     #print(alrd_v)
                     #print(P)
-                print('\r', end='')
-                print("Multiplication table: {:6.2f}% complete".
-                      format(100*(i**2-inew**2 + 2*j + 1)/(iend**2-inew**2)),
-                      end="", flush=True)
+            print('\r', end='')
+            print("Multiplication table: {:6.2f}% complete".
+                  format(100*(i**2-inew**2 + 2*j + 1)/(iend**2-inew**2)),
+                  end="", flush=True)
         inew = len(P)
         iend = inew
         if absent != {}:

@@ -21,16 +21,7 @@
 from sys import argv, path, exit
 path += ['../']
 from symmfinder import *
-
-def symmetrize(points,G):
-    dim = len(points[0])
-    points1 = [np.array([0e0 for i in range(dim)]) for p in points]           
-    for i in range(len(G)):
-        for j in range(len(points)):
-            k = P[i][j]
-            points1[k]  += G[i].dot(points[j])/len(G)
-    return points1
-
+from polytope import symmetrize_points
 
 if len(argv)==1:
     print('''Find point symmetry, correct symmetry group and symmetrize 
@@ -68,7 +59,7 @@ P,G = symmetry_finder(points,dim,epsilon)
 mtab = inclusive_closure(P,G)    
 multab_group_correction(G,mtab,eps=1e-10)
 
-points1 = symmetrize(points,G)
+points1 = symmetrize_points(points,P,G)
 
 print("Symmetrized points:")
 for p in points1:
