@@ -17,7 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import random
-from math import sqrt
+from math import sqrt, acos, pi
 from sys import exit
 import numpy as np
 import numpy.linalg as la
@@ -94,3 +94,24 @@ def symmetrize_points(points,P,G):
             points1[k]  += G[i].dot(points[j])/len(G)
     return points1
 
+def analyze_matrix3(G, eps = 1e-10):
+    inversion = np.linalg.det(G) < 0e0
+    G1 = G.copy()
+    if inversion: G1 *= -1
+    A = 0.5*(G1 - G1.transpose())
+    trace = G1[0,0] + G1[1,1] + G1[2,2]
+    cos = 0.5*(trace - 1e0)
+    if cos > 1e0: cos = 1e0
+    if cos < -1e0: cos = -1e0
+    phi = acos(cos)
+    axis = np.array([-A[1,2], A[0,2], -A[0,1] ])
+    nax = np.linalg.norm(axis)
+    if nax > eps:
+        axis /= nax
+    elif phi < eps:
+        axis = np.array([0., 0., 1.])
+    else:
+        G1 += np.identity(3)
+        axis = max([G1[:,i] for i in [0,1,2]], key = lambda v : np.linalg.norm(v))
+        axis /= np.linalg.norm(axis)
+    return {'inversion': inversion, 'angle':phi, 'order': 2*pi/phi if phi > eps else 1, 'axis': axis}
